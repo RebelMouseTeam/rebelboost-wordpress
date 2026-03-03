@@ -178,11 +178,7 @@ class RebelBoost_Settings {
 			esc_attr( $value )
 		);
 		echo '<p class="description">';
-		printf(
-			/* translators: %s: the site URL */
-			esc_html__( 'Override the RebelBoost proxy URL. Leave empty to use your site URL (%s). Only needed for non-standard setups.', 'rebelboost' ),
-			'<code>' . esc_html( site_url() ) . '</code>'
-		);
+		esc_html_e( 'Override the RebelBoost proxy URL. Leave empty to use the default (https://ingressv2.rebelboost.com). Only needed for non-standard setups.', 'rebelboost' );
 		echo '</p>';
 	}
 

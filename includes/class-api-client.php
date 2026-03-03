@@ -16,7 +16,7 @@ class RebelBoost_API_Client {
 	 */
 	public function reload() {
 		$override   = get_option( 'rebelboost_host', '' );
-		$this->base_url = ! empty( $override ) ? untrailingslashit( $override ) : untrailingslashit( site_url() );
+		$this->base_url = ! empty( $override ) ? untrailingslashit( $override ) : 'https://ingressv2.rebelboost.com';
 		$this->api_key  = get_option( 'rebelboost_api_key', '' );
 	}
 
