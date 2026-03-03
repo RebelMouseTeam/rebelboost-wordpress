@@ -256,6 +256,16 @@ class RebelBoost_Settings {
 		}
 
 		$this->api_client->reload();
+
+		// Register the origin first so the host has an origin config
+		// before we attempt a purge-based connection test.
+		$origin_result = $this->api_client->register_origin();
+		if ( true !== $origin_result ) {
+			wp_send_json_error( array( 'message' => $origin_result->get_error_message() ) );
+			return;
+		}
+
+		// Origin registered — verify the full pipeline works.
 		$result = $this->api_client->test_connection();
 
 		if ( true !== $result ) {
@@ -263,17 +273,8 @@ class RebelBoost_Settings {
 			return;
 		}
 
-		// Connection OK — register this server as the origin.
-		$origin_result = $this->api_client->register_origin();
-		if ( true === $origin_result ) {
-			wp_send_json_success( array(
-				'message' => __( 'Connected! Origin server registered.', 'rebelboost' ),
-			) );
-		} else {
-			// Connection works but origin registration failed — non-fatal.
-			wp_send_json_success( array(
-				'message' => __( 'Connected! (Origin registration failed — configure manually in the dashboard.)', 'rebelboost' ),
-			) );
-		}
+		wp_send_json_success( array(
+			'message' => __( 'Connected! Origin server registered.', 'rebelboost' ),
+		) );
 	}
 }
