@@ -13,6 +13,8 @@
     $.post(rebelboost.ajax_url, {
       action: 'rebelboost_test_connection',
       nonce: rebelboost.nonce,
+      api_key: $('#rebelboost_api_key').val(),
+      host: $('#rebelboost_host').val() || '',
     })
       .done(function (response) {
         if (response.success) {

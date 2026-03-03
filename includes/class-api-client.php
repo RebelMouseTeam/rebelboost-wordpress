@@ -8,15 +8,15 @@ class RebelBoost_API_Client {
 	private $api_key;
 
 	public function __construct() {
-		$this->base_url = untrailingslashit( get_option( 'rebelboost_host', '' ) );
-		$this->api_key  = get_option( 'rebelboost_api_key', '' );
+		$this->reload();
 	}
 
 	/**
-	 * Reload credentials from options (useful after settings save).
+	 * Reload credentials from options.
 	 */
 	public function reload() {
-		$this->base_url = untrailingslashit( get_option( 'rebelboost_host', '' ) );
+		$override   = get_option( 'rebelboost_host', '' );
+		$this->base_url = ! empty( $override ) ? untrailingslashit( $override ) : untrailingslashit( site_url() );
 		$this->api_key  = get_option( 'rebelboost_api_key', '' );
 	}
 
@@ -26,8 +26,8 @@ class RebelBoost_API_Client {
 	 * @return true|WP_Error
 	 */
 	public function test_connection() {
-		if ( empty( $this->base_url ) || empty( $this->api_key ) ) {
-			return new WP_Error( 'rebelboost_not_configured', __( 'RebelBoost host and API key are required.', 'rebelboost' ) );
+		if ( empty( $this->api_key ) ) {
+			return new WP_Error( 'rebelboost_not_configured', __( 'API key is required.', 'rebelboost' ) );
 		}
 
 		$response = $this->request( 'DELETE', '/purge/page/', array( 'path' => '/__rebelboost_connection_test' ) );
@@ -86,6 +86,47 @@ class RebelBoost_API_Client {
 	}
 
 	/**
+	 * Register this server as the origin with RebelBoost.
+	 *
+	 * Sends the server's IP address so RebelBoost knows where to
+	 * proxy requests after DNS is pointed to the proxy.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function register_origin() {
+		if ( empty( $this->api_key ) ) {
+			return new WP_Error( 'rebelboost_not_configured', __( 'RebelBoost is not configured.', 'rebelboost' ) );
+		}
+
+		$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? $_SERVER['SERVER_ADDR'] : gethostbyname( (string) gethostname() );
+		$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 1 : 0;
+
+		$response = $this->request( 'POST', '/connect', array(
+			'origin_host'   => $origin_host,
+			'origin_scheme' => $scheme,
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+
+		if ( $code >= 200 && $code < 300 ) {
+			return true;
+		}
+
+		return new WP_Error(
+			'rebelboost_origin_failed',
+			sprintf(
+				/* translators: %d: HTTP response code */
+				__( 'Origin registration failed (HTTP %d)', 'rebelboost' ),
+				$code
+			)
+		);
+	}
+
+	/**
 	 * Execute a purge request with error handling.
 	 *
 	 * @param string     $method HTTP method.
@@ -94,7 +135,7 @@ class RebelBoost_API_Client {
 	 * @return true|WP_Error
 	 */
 	private function do_purge( $method, $endpoint, $body ) {
-		if ( empty( $this->base_url ) || empty( $this->api_key ) ) {
+		if ( empty( $this->api_key ) ) {
 			return new WP_Error( 'rebelboost_not_configured', __( 'RebelBoost is not configured.', 'rebelboost' ) );
 		}
 
@@ -132,12 +173,19 @@ class RebelBoost_API_Client {
 	private function request( $method, $endpoint, $body = null ) {
 		$url = $this->base_url . '/_rebelboost/extapi/v1' . $endpoint;
 
+		// Always send the site's domain as the Host header so the proxy
+		// can identify the host config, even when base_url differs from
+		// the domain (e.g., local dev where the proxy address != domain).
+		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
+
 		$args = array(
 			'method'  => $method,
 			'headers' => array(
-				'Authorization' => 'Bearer ' . $this->api_key,
-				'Content-Type'  => 'application/json',
-				'Accept'        => 'application/json',
+				'Authorization'   => 'Bearer ' . $this->api_key,
+				'Content-Type'    => 'application/json',
+				'Accept'          => 'application/json',
+				'Host'            => $site_host,
+				'X-Forwarded-Host' => $site_host,
 			),
 			'timeout' => 10,
 		);

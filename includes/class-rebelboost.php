@@ -65,9 +65,8 @@ class RebelBoost {
 	}
 
 	public static function is_connected() {
-		$host    = get_option( 'rebelboost_host', '' );
 		$api_key = get_option( 'rebelboost_api_key', '' );
-		return ! empty( $host ) && ! empty( $api_key );
+		return ! empty( $api_key );
 	}
 
 	public static function activate() {

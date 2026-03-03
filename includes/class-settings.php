@@ -35,13 +35,8 @@ class RebelBoost_Settings {
 			'rebelboost'
 		);
 
-		add_settings_field( 'rebelboost_host', __( 'RebelBoost Host URL', 'rebelboost' ), array( $this, 'render_host_field' ), 'rebelboost', 'rebelboost_connection' );
 		add_settings_field( 'rebelboost_api_key', __( 'API Key', 'rebelboost' ), array( $this, 'render_api_key_field' ), 'rebelboost', 'rebelboost_connection' );
 
-		register_setting( 'rebelboost_settings', 'rebelboost_host', array(
-			'type'              => 'string',
-			'sanitize_callback' => array( $this, 'sanitize_host' ),
-		) );
 		register_setting( 'rebelboost_settings', 'rebelboost_api_key', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
@@ -77,6 +72,7 @@ class RebelBoost_Settings {
 
 		add_settings_field( 'rebelboost_surrogate_keys', __( 'Surrogate Keys', 'rebelboost' ), array( $this, 'render_surrogate_keys_field' ), 'rebelboost', 'rebelboost_advanced' );
 		add_settings_field( 'rebelboost_category_header', __( 'Category Header', 'rebelboost' ), array( $this, 'render_category_header_field' ), 'rebelboost', 'rebelboost_advanced' );
+		add_settings_field( 'rebelboost_host', __( 'Host URL Override', 'rebelboost' ), array( $this, 'render_host_field' ), 'rebelboost', 'rebelboost_advanced' );
 
 		register_setting( 'rebelboost_settings', 'rebelboost_surrogate_keys', array(
 			'type'              => 'string',
@@ -85,6 +81,10 @@ class RebelBoost_Settings {
 		register_setting( 'rebelboost_settings', 'rebelboost_category_header', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
+		) );
+		register_setting( 'rebelboost_settings', 'rebelboost_host', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( $this, 'sanitize_host' ),
 		) );
 	}
 
@@ -145,7 +145,7 @@ class RebelBoost_Settings {
 			echo '</p>';
 		} else {
 			echo '<p class="rebelboost-status rebelboost-status--disconnected">';
-			esc_html_e( 'Status: Not connected. Enter your RebelBoost host URL and API key below.', 'rebelboost' );
+			esc_html_e( 'Status: Not connected. Enter your API key below.', 'rebelboost' );
 			echo '</p>';
 		}
 	}
@@ -160,24 +160,30 @@ class RebelBoost_Settings {
 
 	// Field renderers.
 
-	public function render_host_field() {
-		$value = get_option( 'rebelboost_host', '' );
-		printf(
-			'<input type="url" id="rebelboost_host" name="rebelboost_host" value="%s" class="regular-text" placeholder="https://www.example.com">',
-			esc_attr( $value )
-		);
-		echo '<p class="description">' . esc_html__( 'The URL of your site as served through RebelBoost (e.g., https://www.example.com).', 'rebelboost' ) . '</p>';
-	}
-
 	public function render_api_key_field() {
 		$value = get_option( 'rebelboost_api_key', '' );
 		printf(
 			'<input type="password" id="rebelboost_api_key" name="rebelboost_api_key" value="%s" class="regular-text" autocomplete="off">',
 			esc_attr( $value )
 		);
-		echo '<p class="description">' . esc_html__( 'Your RebelBoost External API key, provided by your account manager.', 'rebelboost' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Your RebelBoost API key from the dashboard.', 'rebelboost' ) . '</p>';
 		echo '<p><button type="button" id="rebelboost-test-connection" class="button">' . esc_html__( 'Test Connection', 'rebelboost' ) . '</button>';
 		echo ' <span id="rebelboost-test-result"></span></p>';
+	}
+
+	public function render_host_field() {
+		$value = get_option( 'rebelboost_host', '' );
+		printf(
+			'<input type="url" id="rebelboost_host" name="rebelboost_host" value="%s" class="regular-text" placeholder="">',
+			esc_attr( $value )
+		);
+		echo '<p class="description">';
+		printf(
+			/* translators: %s: the site URL */
+			esc_html__( 'Override the RebelBoost proxy URL. Leave empty to use your site URL (%s). Only needed for non-standard setups.', 'rebelboost' ),
+			'<code>' . esc_html( site_url() ) . '</code>'
+		);
+		echo '</p>';
 	}
 
 	public function render_auto_purge_field() {
@@ -220,7 +226,11 @@ class RebelBoost_Settings {
 	// Sanitizers.
 
 	public function sanitize_host( $value ) {
-		$value = esc_url_raw( trim( $value ) );
+		$value = trim( $value );
+		if ( empty( $value ) ) {
+			return '';
+		}
+		$value = esc_url_raw( $value );
 		return untrailingslashit( $value );
 	}
 
@@ -237,13 +247,33 @@ class RebelBoost_Settings {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'rebelboost' ) ) );
 		}
 
+		// Save form values so Test Connection works before clicking Save Changes.
+		if ( ! empty( $_POST['api_key'] ) ) {
+			update_option( 'rebelboost_api_key', sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) );
+		}
+		if ( ! empty( $_POST['host'] ) ) {
+			update_option( 'rebelboost_host', $this->sanitize_host( wp_unslash( $_POST['host'] ) ) );
+		}
+
 		$this->api_client->reload();
 		$result = $this->api_client->test_connection();
 
-		if ( true === $result ) {
-			wp_send_json_success( array( 'message' => __( 'Connection successful!', 'rebelboost' ) ) );
-		} else {
+		if ( true !== $result ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			return;
+		}
+
+		// Connection OK — register this server as the origin.
+		$origin_result = $this->api_client->register_origin();
+		if ( true === $origin_result ) {
+			wp_send_json_success( array(
+				'message' => __( 'Connected! Origin server registered.', 'rebelboost' ),
+			) );
+		} else {
+			// Connection works but origin registration failed — non-fatal.
+			wp_send_json_success( array(
+				'message' => __( 'Connected! (Origin registration failed — configure manually in the dashboard.)', 'rebelboost' ),
+			) );
 		}
 	}
 }
