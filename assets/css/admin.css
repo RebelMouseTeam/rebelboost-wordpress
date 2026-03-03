@@ -1,0 +1,53 @@
+/* RebelBoost Admin Styles */
+
+.rebelboost-status {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.rebelboost-status--connected {
+  color: #00a32a;
+  background: #edfaef;
+}
+
+.rebelboost-status--disconnected {
+  color: #d63638;
+  background: #fef0f0;
+}
+
+.rebelboost-dns-guide {
+  background: #f0f0f1;
+  padding: 16px 20px;
+  border-radius: 4px;
+  max-width: 600px;
+}
+
+.rebelboost-dns-guide ol {
+  margin-left: 20px;
+}
+
+.rebelboost-dns-guide li {
+  margin-bottom: 8px;
+}
+
+.rebelboost-meta-box .button {
+  width: 100%;
+  text-align: center;
+}
+
+.rebelboost-purge-result {
+  font-style: italic;
+  min-height: 20px;
+}
+
+#rebelboost-test-result {
+  font-weight: 600;
+}
+
+/* Admin bar customization */
+#wpadminbar #wp-admin-bar-rebelboost > .ab-item:before {
+  content: "\f185";
+  top: 3px;
+}
