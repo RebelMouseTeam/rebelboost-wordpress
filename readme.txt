@@ -2,9 +2,9 @@
 Contributors: rebelmouse
 Tags: performance, cache, optimization, speed, core-web-vitals
 Requires at least: 5.6
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,7 +47,7 @@ The plugin degrades gracefully. Cache purge requests will fail silently without 
 
 == Changelog ==
 
-= 1.0.0 =
+= 0.6.0 =
 * Initial release.
 * Automatic cache invalidation on content changes.
 * Surrogate-Key header injection.

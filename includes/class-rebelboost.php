@@ -60,11 +60,6 @@ class RebelBoost {
 			RebelBoost_CLI::register( $this->api_client );
 		}
 
-		add_action( 'init', array( $this, 'load_textdomain' ) );
-	}
-
-	public function load_textdomain() {
-		load_plugin_textdomain( 'rebelboost', false, basename( REBELBOOST_PLUGIN_DIR ) . '/languages/' );
 	}
 
 	public function get_api_client() {
