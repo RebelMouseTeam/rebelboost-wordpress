@@ -95,6 +95,9 @@ class RebelBoost_CLI {
 			return;
 		}
 
+		$mode = get_option( 'rebelboost_mode', 'integration' );
+
+		WP_CLI::log( "Mode:     {$mode}" );
 		WP_CLI::log( "Host:     {$host}" );
 		WP_CLI::log( 'API Key:  ' . substr( $api_key, 0, 8 ) . str_repeat( '*', max( 0, strlen( $api_key ) - 8 ) ) );
 
@@ -105,6 +108,38 @@ class RebelBoost_CLI {
 		WP_CLI::log( 'Surrogate keys: ' . ( '1' === $surr_keys ? 'enabled' : 'disabled' ) );
 
 		WP_CLI::success( 'RebelBoost is configured.' );
+	}
+
+	/**
+	 * Show or set the plugin operating mode.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [<mode>]
+	 * : Set mode to 'integration' or 'proxy'. Omit to show current mode.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp rebelboost mode
+	 *     wp rebelboost mode proxy
+	 *     wp rebelboost mode integration
+	 *
+	 * @subcommand mode
+	 */
+	public function mode( $args ) {
+		if ( empty( $args[0] ) ) {
+			$current = get_option( 'rebelboost_mode', 'integration' );
+			WP_CLI::log( "Current mode: {$current}" );
+			return;
+		}
+
+		$new_mode = $args[0];
+		if ( ! in_array( $new_mode, array( 'integration', 'proxy' ), true ) ) {
+			WP_CLI::error( "Invalid mode: {$new_mode}. Use 'integration' or 'proxy'." );
+		}
+
+		update_option( 'rebelboost_mode', $new_mode );
+		WP_CLI::success( "Mode set to: {$new_mode}" );
 	}
 
 	/**

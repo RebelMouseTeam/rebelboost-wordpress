@@ -11,6 +11,7 @@ class RebelBoost {
 	private $surrogate_keys;
 	private $settings;
 	private $admin;
+	private $proxy_mode;
 
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -31,6 +32,7 @@ class RebelBoost {
 		require_once REBELBOOST_PLUGIN_DIR . 'includes/class-surrogate-keys.php';
 		require_once REBELBOOST_PLUGIN_DIR . 'includes/class-settings.php';
 		require_once REBELBOOST_PLUGIN_DIR . 'includes/class-admin.php';
+		require_once REBELBOOST_PLUGIN_DIR . 'includes/class-proxy-mode.php';
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once REBELBOOST_PLUGIN_DIR . 'includes/class-cli.php';
@@ -41,6 +43,7 @@ class RebelBoost {
 		$this->surrogate_keys     = new RebelBoost_Surrogate_Keys();
 		$this->settings           = new RebelBoost_Settings( $this->api_client );
 		$this->admin              = new RebelBoost_Admin( $this->api_client );
+		$this->proxy_mode         = new RebelBoost_Proxy_Mode();
 	}
 
 	private function register_hooks() {
@@ -48,6 +51,7 @@ class RebelBoost {
 		$this->surrogate_keys->register_hooks();
 		$this->settings->register_hooks();
 		$this->admin->register_hooks();
+		$this->proxy_mode->register_hooks();
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			RebelBoost_CLI::register( $this->api_client );
@@ -75,6 +79,7 @@ class RebelBoost {
 			'rebelboost_purge_on_comment' => '1',
 			'rebelboost_surrogate_keys'   => '1',
 			'rebelboost_category_header'  => 'X-RM-Categories',
+			'rebelboost_mode'             => 'integration',
 		);
 
 		foreach ( $defaults as $key => $value ) {
