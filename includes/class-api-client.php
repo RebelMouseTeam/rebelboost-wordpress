@@ -25,7 +25,14 @@ class RebelBoost_API_Client {
 	 *
 	 * @return true|WP_Error
 	 */
-	public function test_connection() {
+	/**
+	 * Test the connection by attempting a purge on a non-existent path.
+	 *
+	 * @param bool $proxy_mode When true, accept 400 as valid (host may not
+	 *                         have a purge config yet, but the key was not rejected).
+	 * @return true|WP_Error
+	 */
+	public function test_connection( $proxy_mode = false ) {
 		if ( empty( $this->api_key ) ) {
 			return new WP_Error( 'rebelboost_not_configured', __( 'API key is required.', 'rebelboost' ) );
 		}
@@ -43,6 +50,12 @@ class RebelBoost_API_Client {
 		}
 
 		if ( $code >= 200 && $code < 300 ) {
+			return true;
+		}
+
+		// In proxy mode the host may not have a purge config yet,
+		// so 400 is expected. The key was accepted (not 401/403).
+		if ( $proxy_mode && 400 === $code ) {
 			return true;
 		}
 

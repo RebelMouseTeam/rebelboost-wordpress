@@ -27,6 +27,21 @@ class RebelBoost_Settings {
 	}
 
 	public function register_settings() {
+		// Plugin mode section.
+		add_settings_section(
+			'rebelboost_mode_section',
+			__( 'Plugin Mode', 'rebelboost' ),
+			array( $this, 'render_mode_section' ),
+			'rebelboost'
+		);
+
+		add_settings_field( 'rebelboost_mode', __( 'Operating Mode', 'rebelboost' ), array( $this, 'render_mode_field' ), 'rebelboost', 'rebelboost_mode_section' );
+
+		register_setting( 'rebelboost_settings', 'rebelboost_mode', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( $this, 'sanitize_mode' ),
+		) );
+
 		// Connection section.
 		add_settings_section(
 			'rebelboost_connection',
@@ -109,6 +124,7 @@ class RebelBoost_Settings {
 
 			<hr>
 
+			<?php if ( 'proxy' !== get_option( 'rebelboost_mode', 'integration' ) ) : ?>
 			<h2><?php esc_html_e( 'DNS Setup Guide', 'rebelboost' ); ?></h2>
 			<div class="rebelboost-dns-guide">
 				<p><?php esc_html_e( 'To enable RebelBoost optimization, point your domain to the RebelBoost proxy:', 'rebelboost' ); ?></p>
@@ -119,6 +135,10 @@ class RebelBoost_Settings {
 					<li><?php esc_html_e( 'Verify the connection using the "Test Connection" button above.', 'rebelboost' ); ?></li>
 				</ol>
 			</div>
+			<?php else : ?>
+			<h2><?php esc_html_e( 'Proxy Mode Active', 'rebelboost' ); ?></h2>
+			<p><?php esc_html_e( 'RebelBoost is operating in proxy mode. Asset URLs are being rewritten to route through the RebelBoost CDN. No DNS or CDN changes are required.', 'rebelboost' ); ?></p>
+			<?php endif; ?>
 
 			<hr>
 
@@ -221,6 +241,32 @@ class RebelBoost_Settings {
 
 	// Sanitizers.
 
+	public function render_mode_section() {
+		echo '<p>' . esc_html__( 'Choose how RebelBoost connects to your site.', 'rebelboost' ) . '</p>';
+	}
+
+	public function render_mode_field() {
+		$current = get_option( 'rebelboost_mode', 'integration' );
+		?>
+		<fieldset>
+			<label style="display:block; margin-bottom:8px;">
+				<input type="radio" name="rebelboost_mode" value="integration" <?php checked( $current, 'integration' ); ?>>
+				<strong><?php esc_html_e( 'Integration', 'rebelboost' ); ?></strong>
+				&mdash; <?php esc_html_e( 'Works with your existing CDN. Handles cache invalidation and surrogate keys. Requires CDN/DNS pointing to RebelBoost.', 'rebelboost' ); ?>
+			</label>
+			<label style="display:block;">
+				<input type="radio" name="rebelboost_mode" value="proxy" <?php checked( $current, 'proxy' ); ?>>
+				<strong><?php esc_html_e( 'Proxy', 'rebelboost' ); ?></strong>
+				&mdash; <?php esc_html_e( 'Routes assets through RebelBoost via WordPress output rewriting. No DNS or CDN changes needed.', 'rebelboost' ); ?>
+			</label>
+		</fieldset>
+		<?php
+	}
+
+	public function sanitize_mode( $value ) {
+		return in_array( $value, array( 'integration', 'proxy' ), true ) ? $value : 'integration';
+	}
+
 	public function sanitize_host( $value ) {
 		$value = trim( $value );
 		if ( empty( $value ) ) {
@@ -250,11 +296,36 @@ class RebelBoost_Settings {
 		if ( ! empty( $_POST['host'] ) ) {
 			update_option( 'rebelboost_host', $this->sanitize_host( wp_unslash( $_POST['host'] ) ) );
 		}
+		if ( isset( $_POST['mode'] ) ) {
+			update_option( 'rebelboost_mode', $this->sanitize_mode( wp_unslash( $_POST['mode'] ) ) );
+		}
 
 		$this->api_client->reload();
 
-		// Register the origin first so the host has an origin config
-		// before we attempt a purge-based connection test.
+		$mode = get_option( 'rebelboost_mode', 'integration' );
+
+		if ( 'proxy' === $mode ) {
+			// In proxy mode, verify the API key first.
+			$result = $this->api_client->test_connection( true );
+
+			if ( true !== $result ) {
+				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+				return;
+			}
+
+			// Still register the origin so the service knows where to
+			// fetch content from — but don't fail if it errors (the host
+			// may not have a full CDN config yet in proxy mode).
+			$this->api_client->register_origin();
+
+			wp_send_json_success( array(
+				'message' => __( 'Connected! Proxy mode active — asset URLs will be rewritten.', 'rebelboost' ),
+			) );
+			return;
+		}
+
+		// Integration mode: register the origin first so the host has an
+		// origin config before we attempt a purge-based connection test.
 		$origin_result = $this->api_client->register_origin();
 		if ( true !== $origin_result ) {
 			wp_send_json_error( array( 'message' => $origin_result->get_error_message() ) );
