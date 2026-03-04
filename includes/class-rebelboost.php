@@ -47,11 +47,14 @@ class RebelBoost {
 	}
 
 	private function register_hooks() {
+		// Proxy mode must register first — it hooks into plugins_loaded
+		// to intercept requests before WordPress builds the page.
+		$this->proxy_mode->register_hooks();
+
 		$this->cache_invalidation->register_hooks();
 		$this->surrogate_keys->register_hooks();
 		$this->settings->register_hooks();
 		$this->admin->register_hooks();
-		$this->proxy_mode->register_hooks();
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			RebelBoost_CLI::register( $this->api_client );
