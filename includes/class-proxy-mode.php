@@ -5,13 +5,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Proxy mode — serves optimized pages via the RebelBoost service.
  *
- * For regular browser requests, this class fetches the page from the
- * RebelBoost proxy (which applies optimizations like image compression,
- * lazy loading, script deferral, etc.) and serves the optimized response.
+ * For regular browser requests, this class intercepts as early as possible
+ * (at `plugins_loaded`) and fetches the optimized page from RebelBoost.
+ * If the page is cached at RebelBoost, WordPress never builds the page
+ * at all — giving the best possible TTFB.
  *
- * When the RebelBoost service fetches back from WordPress (origin fetch),
- * we detect this via a secret header token and let WordPress serve normally
- * to avoid an infinite loop.
+ * On cache miss, RebelBoost fetches from the WordPress origin. The plugin
+ * detects the origin fetch via a loop token header and lets WordPress
+ * serve normally (single page build).
  */
 class RebelBoost_Proxy_Mode {
 
@@ -19,9 +20,8 @@ class RebelBoost_Proxy_Mode {
 	private $base_url;
 
 	/**
-	 * Secret token used to identify origin fetches from the plugin's own
-	 * proxy requests vs. the RebelBoost service fetching from origin.
-	 * Derived from the API key so it's unique per site but not guessable.
+	 * Secret token to detect origin fetches (loop prevention).
+	 * Derived from the API key so it's unique per site.
 	 */
 	private $loop_token;
 
@@ -33,35 +33,79 @@ class RebelBoost_Proxy_Mode {
 	}
 
 	public function register_hooks() {
-		if ( ! $this->is_active() ) {
+		if ( ! $this->should_proxy() ) {
 			return;
 		}
 
-		// If this request was made by our own proxy (loopback from RebelBoost
-		// service fetching the origin), let WordPress serve normally.
-		if ( $this->is_loopback() ) {
-			return;
-		}
-
-		// For regular browser requests, proxy through RebelBoost.
-		add_action( 'template_redirect', array( $this, 'serve_optimized' ), 0 );
+		// Hook as early as possible. plugins_loaded fires before init,
+		// parse_request, wp, template_redirect — so WordPress hasn't
+		// built the page yet. On cache hit, we serve and exit immediately.
+		add_action( 'plugins_loaded', array( $this, 'serve_optimized' ), 0 );
 	}
 
-	public function is_active() {
-		return 'proxy' === get_option( 'rebelboost_mode', 'integration' )
-			&& RebelBoost::is_connected()
-			&& ! is_admin()
-			&& ! wp_doing_ajax()
-			&& ! wp_doing_cron()
-			&& ! ( defined( 'REST_REQUEST' ) && REST_REQUEST );
+	/**
+	 * Determine if this request should be proxied through RebelBoost.
+	 *
+	 * Runs at plugin load time, so we use low-level checks only
+	 * (no is_admin() which depends on full WP bootstrap).
+	 */
+	private function should_proxy() {
+		// Mode check.
+		if ( 'proxy' !== get_option( 'rebelboost_mode', 'integration' ) ) {
+			return false;
+		}
+
+		// Must be connected.
+		if ( ! RebelBoost::is_connected() ) {
+			return false;
+		}
+
+		// Skip admin requests.
+		if ( is_admin() ) {
+			return false;
+		}
+
+		// Skip AJAX.
+		if ( wp_doing_ajax() ) {
+			return false;
+		}
+
+		// Skip cron.
+		if ( wp_doing_cron() ) {
+			return false;
+		}
+
+		// Skip REST API.
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return false;
+		}
+
+		// Skip WP-CLI.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			return false;
+		}
+
+		// Skip XML-RPC.
+		if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
+			return false;
+		}
+
+		// Skip origin fetches from RebelBoost (loop prevention).
+		if ( $this->is_loopback() ) {
+			return false;
+		}
+
+		// Skip wp-login, wp-signup, wp-cron.php etc.
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '';
+		if ( preg_match( '#/wp-(login|signup|cron|admin|json)#', $request_uri ) ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
 	 * Detect if this is an origin fetch triggered by our own proxy request.
-	 *
-	 * The RebelBoost service forwards all request headers to the origin.
-	 * We add a custom header (X-Rebelboost-Loop-Token) when proxying,
-	 * which gets forwarded back to us on the origin fetch.
 	 */
 	private function is_loopback() {
 		$token = isset( $_SERVER['HTTP_X_REBELBOOST_LOOP_TOKEN'] )
@@ -72,6 +116,10 @@ class RebelBoost_Proxy_Mode {
 
 	/**
 	 * Fetch the optimized page from the RebelBoost service and serve it.
+	 *
+	 * If RebelBoost has the page cached, this returns immediately without
+	 * WordPress ever building the page (best TTFB). On cache miss,
+	 * RebelBoost fetches from origin (one WordPress page build).
 	 */
 	public function serve_optimized() {
 		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/';
@@ -100,7 +148,7 @@ class RebelBoost_Proxy_Mode {
 		) );
 
 		if ( is_wp_error( $response ) ) {
-			// If the proxy is unreachable, fall back to normal WordPress output.
+			// Proxy unreachable — fall back to normal WordPress.
 			return;
 		}
 
@@ -113,6 +161,7 @@ class RebelBoost_Proxy_Mode {
 			'cache-control',
 			'x-rebelboost-cache',
 			'x-rebelboost-optimized',
+			'x-rebelmouse-origin-timing',
 			'vary',
 			'link',
 		);
