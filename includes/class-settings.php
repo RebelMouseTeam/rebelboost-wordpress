@@ -181,8 +181,10 @@ class RebelBoost_Settings {
 			esc_attr( $value )
 		);
 		echo '<p class="description">' . esc_html__( 'Your RebelBoost API key from the dashboard.', 'rebelboost' ) . '</p>';
-		echo '<p><button type="button" id="rebelboost-test-connection" class="button">' . esc_html__( 'Test Connection', 'rebelboost' ) . '</button>';
-		echo ' <span id="rebelboost-test-result"></span></p>';
+		if ( ! empty( $value ) ) {
+			echo '<p><button type="button" id="rebelboost-test-connection" class="button">' . esc_html__( 'Test Connection', 'rebelboost' ) . '</button>';
+			echo ' <span id="rebelboost-test-result"></span></p>';
+		}
 	}
 
 	public function render_auto_purge_field() {
