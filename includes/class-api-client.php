@@ -110,8 +110,15 @@ class RebelBoost_API_Client {
 			return new WP_Error( 'rebelboost_not_configured', __( 'RebelBoost is not configured.', 'rebelboost' ) );
 		}
 
-		$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? $_SERVER['SERVER_ADDR'] : gethostbyname( (string) gethostname() );
-		$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 1 : 0;
+		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
+
+		if ( 'wordpress.local' === $site_host ) {
+			$origin_host = 'wordpress';
+			$scheme      = 0; // HTTP in local dev.
+		} else {
+			$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? $_SERVER['SERVER_ADDR'] : gethostbyname( (string) gethostname() );
+			$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 1 : 0;
+		}
 
 		$response = $this->request( 'POST', '/connect', array(
 			'origin_host'   => $origin_host,
