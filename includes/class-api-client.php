@@ -112,12 +112,13 @@ class RebelBoost_API_Client {
 
 		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
 
+		// origin_scheme: 0 = HTTPS, 1 = HTTP (matches rebelboost-config convention).
 		if ( 'wordpress.local' === $site_host ) {
 			$origin_host = 'wordpress';
-			$scheme      = 0; // HTTP in local dev.
+			$scheme      = 1; // HTTP in local dev.
 		} else {
 			$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? $_SERVER['SERVER_ADDR'] : gethostbyname( (string) gethostname() );
-			$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 1 : 0;
+			$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 0 : 1;
 		}
 
 		$response = $this->request( 'POST', '/connect', array(
