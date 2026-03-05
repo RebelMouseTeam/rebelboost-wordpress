@@ -66,6 +66,14 @@ class RebelBoost {
 		return $this->api_client;
 	}
 
+	public static function get_host_url() {
+		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
+		if ( 'wordpress.local' === $site_host ) {
+			return 'http://rebelboost:4001';
+		}
+		return 'https://ingressv2.rebelboost.com';
+	}
+
 	public static function is_connected() {
 		$api_key = get_option( 'rebelboost_api_key', '' );
 		return ! empty( $api_key );

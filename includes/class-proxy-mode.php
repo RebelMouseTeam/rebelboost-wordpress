@@ -27,8 +27,7 @@ class RebelBoost_Proxy_Mode {
 
 	public function __construct() {
 		$this->site_host  = wp_parse_url( site_url(), PHP_URL_HOST );
-		$override         = get_option( 'rebelboost_host', '' );
-		$this->base_url   = ! empty( $override ) ? untrailingslashit( $override ) : 'https://ingressv2.rebelboost.com';
+		$this->base_url   = RebelBoost::get_host_url();
 		$this->loop_token = substr( md5( 'rebelboost_proxy_' . get_option( 'rebelboost_api_key', '' ) ), 0, 16 );
 	}
 

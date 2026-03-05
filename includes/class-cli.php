@@ -87,10 +87,10 @@ class RebelBoost_CLI {
 	 * @subcommand status
 	 */
 	public function status() {
-		$host    = get_option( 'rebelboost_host', '' );
+		$host    = RebelBoost::get_host_url();
 		$api_key = get_option( 'rebelboost_api_key', '' );
 
-		if ( empty( $host ) || empty( $api_key ) ) {
+		if ( empty( $api_key ) ) {
 			WP_CLI::warning( 'RebelBoost is not configured.' );
 			return;
 		}

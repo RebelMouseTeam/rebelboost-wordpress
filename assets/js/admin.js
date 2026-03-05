@@ -14,7 +14,6 @@
       action: 'rebelboost_test_connection',
       nonce: rebelboost.nonce,
       api_key: $('#rebelboost_api_key').val(),
-      host: $('#rebelboost_host').val() || '',
       mode: $('input[name="rebelboost_mode"]:checked').val() || 'integration',
     })
       .done(function (response) {

@@ -15,8 +15,7 @@ class RebelBoost_API_Client {
 	 * Reload credentials from options.
 	 */
 	public function reload() {
-		$override   = get_option( 'rebelboost_host', '' );
-		$this->base_url = ! empty( $override ) ? untrailingslashit( $override ) : 'https://ingressv2.rebelboost.com';
+		$this->base_url = RebelBoost::get_host_url();
 		$this->api_key  = get_option( 'rebelboost_api_key', '' );
 	}
 

@@ -87,8 +87,6 @@ class RebelBoost_Settings {
 
 		add_settings_field( 'rebelboost_surrogate_keys', __( 'Surrogate Keys', 'rebelboost' ), array( $this, 'render_surrogate_keys_field' ), 'rebelboost', 'rebelboost_advanced' );
 		add_settings_field( 'rebelboost_category_header', __( 'Category Header', 'rebelboost' ), array( $this, 'render_category_header_field' ), 'rebelboost', 'rebelboost_advanced' );
-		add_settings_field( 'rebelboost_host', __( 'Host URL Override', 'rebelboost' ), array( $this, 'render_host_field' ), 'rebelboost', 'rebelboost_advanced' );
-
 		register_setting( 'rebelboost_settings', 'rebelboost_surrogate_keys', array(
 			'type'              => 'string',
 			'sanitize_callback' => array( $this, 'sanitize_checkbox' ),
@@ -96,10 +94,6 @@ class RebelBoost_Settings {
 		register_setting( 'rebelboost_settings', 'rebelboost_category_header', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
-		) );
-		register_setting( 'rebelboost_settings', 'rebelboost_host', array(
-			'type'              => 'string',
-			'sanitize_callback' => array( $this, 'sanitize_host' ),
 		) );
 	}
 
@@ -147,7 +141,7 @@ class RebelBoost_Settings {
 				<?php esc_html_e( 'Manage smart links, view detailed cache statistics, and configure advanced optimization settings in the RebelBoost dashboard.', 'rebelboost' ); ?>
 			</p>
 			<?php if ( RebelBoost::is_connected() ) : ?>
-				<a href="<?php echo esc_url( get_option( 'rebelboost_host', '' ) ); ?>" target="_blank" class="button">
+				<a href="<?php echo esc_url( RebelBoost::get_host_url() ); ?>" target="_blank" class="button">
 					<?php esc_html_e( 'Open RebelBoost Dashboard', 'rebelboost' ); ?> &rarr;
 				</a>
 			<?php endif; ?>
@@ -189,17 +183,6 @@ class RebelBoost_Settings {
 		echo '<p class="description">' . esc_html__( 'Your RebelBoost API key from the dashboard.', 'rebelboost' ) . '</p>';
 		echo '<p><button type="button" id="rebelboost-test-connection" class="button">' . esc_html__( 'Test Connection', 'rebelboost' ) . '</button>';
 		echo ' <span id="rebelboost-test-result"></span></p>';
-	}
-
-	public function render_host_field() {
-		$value = get_option( 'rebelboost_host', '' );
-		printf(
-			'<input type="url" id="rebelboost_host" name="rebelboost_host" value="%s" class="regular-text" placeholder="">',
-			esc_attr( $value )
-		);
-		echo '<p class="description">';
-		esc_html_e( 'Override the RebelBoost proxy URL. Leave empty to use the default (https://ingressv2.rebelboost.com). Only needed for non-standard setups.', 'rebelboost' );
-		echo '</p>';
 	}
 
 	public function render_auto_purge_field() {
@@ -267,15 +250,6 @@ class RebelBoost_Settings {
 		return in_array( $value, array( 'integration', 'proxy' ), true ) ? $value : 'integration';
 	}
 
-	public function sanitize_host( $value ) {
-		$value = trim( $value );
-		if ( empty( $value ) ) {
-			return '';
-		}
-		$value = esc_url_raw( $value );
-		return untrailingslashit( $value );
-	}
-
 	public function sanitize_checkbox( $value ) {
 		return '1' === $value ? '1' : '0';
 	}
@@ -292,9 +266,6 @@ class RebelBoost_Settings {
 		// Save form values so Test Connection works before clicking Save Changes.
 		if ( ! empty( $_POST['api_key'] ) ) {
 			update_option( 'rebelboost_api_key', sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) );
-		}
-		if ( ! empty( $_POST['host'] ) ) {
-			update_option( 'rebelboost_host', $this->sanitize_host( wp_unslash( $_POST['host'] ) ) );
 		}
 		if ( isset( $_POST['mode'] ) ) {
 			update_option( 'rebelboost_mode', $this->sanitize_mode( wp_unslash( $_POST['mode'] ) ) );

@@ -9,7 +9,6 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // Remove all plugin options.
 $options = array(
-	'rebelboost_host',
 	'rebelboost_api_key',
 	'rebelboost_auto_purge',
 	'rebelboost_purge_on_comment',
