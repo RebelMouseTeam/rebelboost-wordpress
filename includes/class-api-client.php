@@ -117,7 +117,7 @@ class RebelBoost_API_Client {
 			$origin_host = 'wordpress';
 			$scheme      = 1; // HTTP in local dev.
 		} else {
-			$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? $_SERVER['SERVER_ADDR'] : gethostbyname( (string) gethostname() );
+			$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : gethostbyname( (string) gethostname() );
 			$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 0 : 1;
 		}
 

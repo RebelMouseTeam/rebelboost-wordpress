@@ -24,3 +24,9 @@ RebelBoost::init();
 
 register_activation_hook( __FILE__, array( 'RebelBoost', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'RebelBoost', 'deactivate' ) );
+
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function ( $links ) {
+	$settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=rebelboost' ) ) . '">' . __( 'Settings', 'rebelboost' ) . '</a>';
+	array_unshift( $links, $settings_link );
+	return $links;
+} );

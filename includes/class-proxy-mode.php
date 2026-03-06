@@ -94,8 +94,14 @@ class RebelBoost_Proxy_Mode {
 			return false;
 		}
 
+		// Skip logged-in users — serve them directly from WordPress
+		// so they see admin bars, previews, and personalised content.
+		if ( $this->is_user_logged_in_early() ) {
+			return false;
+		}
+
 		// Skip wp-login, wp-signup, wp-cron.php etc.
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		if ( preg_match( '#/wp-(login|signup|cron|admin|json)#', $request_uri ) ) {
 			return false;
 		}
@@ -108,9 +114,27 @@ class RebelBoost_Proxy_Mode {
 	 */
 	private function is_loopback() {
 		$token = isset( $_SERVER['HTTP_X_REBELBOOST_LOOP_TOKEN'] )
-			? $_SERVER['HTTP_X_REBELBOOST_LOOP_TOKEN']
+			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_REBELBOOST_LOOP_TOKEN'] ) )
 			: '';
-		return $token === $this->loop_token;
+		return hash_equals( $this->loop_token, $token );
+	}
+
+	/**
+	 * Check if the current visitor is logged in before full WP bootstrap.
+	 *
+	 * At plugins_loaded, is_user_logged_in() is not yet available, so we
+	 * check for the presence of the WordPress logged-in cookie.
+	 */
+	private function is_user_logged_in_early() {
+		if ( empty( $_COOKIE ) ) {
+			return false;
+		}
+		foreach ( array_keys( $_COOKIE ) as $name ) {
+			if ( 0 === strpos( $name, 'wordpress_logged_in_' ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -121,23 +145,22 @@ class RebelBoost_Proxy_Mode {
 	 * RebelBoost fetches from origin (one WordPress page build).
 	 */
 	public function serve_optimized() {
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 		$url         = $this->base_url . $request_uri;
+
+		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$accept      = isset( $_SERVER['HTTP_ACCEPT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT'] ) ) : '*/*';
+		$user_agent  = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
 
 		$headers = array(
 			'Host'                      => $this->site_host,
 			'X-Forwarded-Host'          => $this->site_host,
-			'X-Forwarded-For'           => isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : '',
+			'X-Forwarded-For'           => $remote_addr,
 			'X-Rebelboost-Loop-Token'   => $this->loop_token,
-			'Accept'                    => isset( $_SERVER['HTTP_ACCEPT'] ) ? $_SERVER['HTTP_ACCEPT'] : '*/*',
+			'Accept'                    => $accept,
 			'Accept-Encoding'           => 'identity',
-			'User-Agent'                => isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '',
+			'User-Agent'                => $user_agent,
 		);
-
-		// Forward cookies for authenticated/personalized content.
-		if ( ! empty( $_SERVER['HTTP_COOKIE'] ) ) {
-			$headers['Cookie'] = $_SERVER['HTTP_COOKIE'];
-		}
 
 		$response = wp_remote_get( $url, array(
 			'headers'     => $headers,
@@ -153,6 +176,15 @@ class RebelBoost_Proxy_Mode {
 
 		$status = wp_remote_retrieve_response_code( $response );
 		$body   = wp_remote_retrieve_body( $response );
+
+		// Forward redirect responses.
+		if ( $status >= 300 && $status < 400 ) {
+			$location = wp_remote_retrieve_header( $response, 'location' );
+			if ( ! empty( $location ) ) {
+				header( 'Location: ' . esc_url_raw( $location ), true, $status );
+				exit;
+			}
+		}
 
 		// Forward relevant response headers.
 		$passthrough_headers = array(
