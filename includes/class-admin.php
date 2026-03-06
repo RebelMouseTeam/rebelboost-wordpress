@@ -15,6 +15,7 @@ class RebelBoost_Admin {
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_toolbar_assets' ) );
+		add_action( 'admin_notices', array( $this, 'activation_notice' ) );
 
 		// AJAX handlers.
 		add_action( 'wp_ajax_rebelboost_purge_all', array( $this, 'ajax_purge_all' ) );
@@ -135,7 +136,7 @@ class RebelBoost_Admin {
 	public function enqueue_admin_assets( $hook ) {
 		$load_on = array( 'settings_page_rebelboost', 'post.php', 'post-new.php' );
 
-		if ( ! in_array( $hook, $load_on, true ) && ! RebelBoost::is_connected() ) {
+		if ( ! in_array( $hook, $load_on, true ) ) {
 			return;
 		}
 
@@ -195,6 +196,44 @@ class RebelBoost_Admin {
 				'confirm_purge'   => __( 'Purge all RebelBoost cache for this site?', 'rebelboost' ),
 			),
 		) );
+	}
+
+	/**
+	 * Show a one-time notice after activation if not yet configured.
+	 */
+	public function activation_notice() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( RebelBoost::is_connected() ) {
+			return;
+		}
+
+		// Only show on pages other than our own settings page.
+		$screen = get_current_screen();
+		if ( $screen && 'settings_page_rebelboost' === $screen->id ) {
+			return;
+		}
+
+		$settings_url = esc_url( admin_url( 'options-general.php?page=rebelboost' ) );
+		?>
+		<div class="notice notice-info is-dismissible">
+			<p>
+				<?php
+				echo wp_kses(
+					sprintf(
+						/* translators: %1$s: opening link tag, %2$s: closing link tag */
+						__( 'RebelBoost is active but not configured. %1$sGo to Settings%2$s to enter your API key.', 'rebelboost' ),
+						'<a href="' . $settings_url . '">',
+						'</a>'
+					),
+					array( 'a' => array( 'href' => array() ) )
+				);
+				?>
+			</p>
+		</div>
+		<?php
 	}
 
 	// AJAX handlers.
