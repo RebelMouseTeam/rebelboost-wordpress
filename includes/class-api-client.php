@@ -117,8 +117,26 @@ class RebelBoost_API_Client {
 			$origin_host = 'wordpress';
 			$scheme      = 1; // HTTP in local dev.
 		} else {
-			$origin_host = ! empty( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : gethostbyname( (string) gethostname() );
-			$scheme      = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 0 : 1;
+			$mode = get_option( 'rebelboost_mode', 'integration' );
+
+			if ( 'proxy' === $mode ) {
+				// In proxy mode DNS still points to the real server,
+				// so the site domain is a valid origin address.
+				$origin_host = $site_host;
+			} else {
+				// In integration mode DNS points to RebelBoost, so we
+				// need an explicit origin IP/hostname from the user.
+				$origin_host = get_option( 'rebelboost_origin_host', '' );
+
+				if ( empty( $origin_host ) ) {
+					return new WP_Error(
+						'rebelboost_origin_missing',
+						__( 'Origin host is required in integration mode. Please enter your server\'s IP address or hostname in the RebelBoost settings.', 'rebelboost' )
+					);
+				}
+			}
+
+			$scheme = ( 'https' === wp_parse_url( site_url(), PHP_URL_SCHEME ) ) ? 0 : 1;
 		}
 
 		$response = $this->request( 'POST', '/connect', array(

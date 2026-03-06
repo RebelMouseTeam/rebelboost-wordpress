@@ -36,10 +36,15 @@ class RebelBoost_Settings {
 		);
 
 		add_settings_field( 'rebelboost_mode', __( 'Operating Mode', 'rebelboost' ), array( $this, 'render_mode_field' ), 'rebelboost', 'rebelboost_mode_section' );
+		add_settings_field( 'rebelboost_origin_host', __( 'Origin Host', 'rebelboost' ), array( $this, 'render_origin_host_field' ), 'rebelboost', 'rebelboost_mode_section' );
 
 		register_setting( 'rebelboost_settings', 'rebelboost_mode', array(
 			'type'              => 'string',
 			'sanitize_callback' => array( $this, 'sanitize_mode' ),
+		) );
+		register_setting( 'rebelboost_settings', 'rebelboost_origin_host', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( $this, 'sanitize_origin_host' ),
 		) );
 
 		// Connection section.
@@ -248,8 +253,31 @@ class RebelBoost_Settings {
 		<?php
 	}
 
+	public function render_origin_host_field() {
+		$value   = get_option( 'rebelboost_origin_host', '' );
+		$current = get_option( 'rebelboost_mode', 'integration' );
+		$hidden  = 'integration' !== $current ? ' style="display:none;"' : '';
+		printf(
+			'<div id="rebelboost-origin-host-row"%s>',
+			$hidden // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static attribute value.
+		);
+		printf(
+			'<input type="text" id="rebelboost_origin_host" name="rebelboost_origin_host" value="%s" class="regular-text" placeholder="e.g. 203.0.113.50">',
+			esc_attr( $value )
+		);
+		echo '<p class="description">' . esc_html__( 'Your server\'s public IP address or hostname. Required in integration mode so RebelBoost can reach your origin after DNS is pointed to the proxy.', 'rebelboost' ) . '</p>';
+		echo '</div>';
+	}
+
 	public function sanitize_mode( $value ) {
 		return in_array( $value, array( 'integration', 'proxy' ), true ) ? $value : 'integration';
+	}
+
+	public function sanitize_origin_host( $value ) {
+		$value = sanitize_text_field( $value );
+		// Allow IP addresses and hostnames only.
+		$value = preg_replace( '/[^a-zA-Z0-9.\-:]/', '', $value );
+		return $value;
 	}
 
 	public function sanitize_checkbox( $value ) {
@@ -271,6 +299,9 @@ class RebelBoost_Settings {
 		}
 		if ( isset( $_POST['mode'] ) ) {
 			update_option( 'rebelboost_mode', $this->sanitize_mode( wp_unslash( $_POST['mode'] ) ) );
+		}
+		if ( isset( $_POST['origin_host'] ) ) {
+			update_option( 'rebelboost_origin_host', $this->sanitize_origin_host( wp_unslash( $_POST['origin_host'] ) ) );
 		}
 
 		$this->api_client->reload();
