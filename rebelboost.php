@@ -3,7 +3,7 @@
  * Plugin Name:  RebelBoost
  * Plugin URI:   https://rebelboost.io
  * Description:  Automatic cache invalidation and optimization integration for RebelBoost page optimizer.
- * Version:      0.7.1
+ * Version:      0.7.2
  * Author:       RebelMouse
  * Author URI:   https://www.rebelmouse.com/
  * License:      GPL2
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'REBELBOOST_VERSION', '0.7.1' );
+define( 'REBELBOOST_VERSION', '0.7.2' );
 define( 'REBELBOOST_PLUGIN_FILE', __FILE__ );
 define( 'REBELBOOST_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'REBELBOOST_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
