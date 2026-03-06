@@ -1,6 +1,19 @@
 (function ($) {
   'use strict';
 
+  // Show/hide origin host field based on selected mode.
+  function toggleOriginHost() {
+    var mode = $('input[name="rebelboost_mode"]:checked').val() || 'integration';
+    var $row = $('#rebelboost-origin-host-row');
+    if ('integration' === mode) {
+      $row.slideDown(150);
+    } else {
+      $row.slideUp(150);
+    }
+  }
+
+  $(document).on('change', 'input[name="rebelboost_mode"]', toggleOriginHost);
+
   // Test connection button on settings page.
   $(document).on('click', '#rebelboost-test-connection', function (e) {
     e.preventDefault();
@@ -15,6 +28,7 @@
       nonce: rebelboost.nonce,
       api_key: $('#rebelboost_api_key').val(),
       mode: $('input[name="rebelboost_mode"]:checked').val() || 'integration',
+      origin_host: $('#rebelboost_origin_host').val() || '',
     })
       .done(function (response) {
         if (response.success) {

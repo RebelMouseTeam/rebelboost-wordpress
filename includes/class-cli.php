@@ -118,24 +118,43 @@ class RebelBoost_CLI {
 	 * [<mode>]
 	 * : Set mode to 'integration' or 'proxy'. Omit to show current mode.
 	 *
+	 * [--origin-host=<host>]
+	 * : Origin server IP or hostname. Required when switching to integration mode.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp rebelboost mode
 	 *     wp rebelboost mode proxy
-	 *     wp rebelboost mode integration
+	 *     wp rebelboost mode integration --origin-host=203.0.113.50
 	 *
 	 * @subcommand mode
 	 */
-	public function mode( $args ) {
+	public function mode( $args, $assoc_args ) {
 		if ( empty( $args[0] ) ) {
-			$current = get_option( 'rebelboost_mode', 'integration' );
+			$current     = get_option( 'rebelboost_mode', 'integration' );
+			$origin_host = get_option( 'rebelboost_origin_host', '' );
 			WP_CLI::log( "Current mode: {$current}" );
+			if ( ! empty( $origin_host ) ) {
+				WP_CLI::log( "Origin host:  {$origin_host}" );
+			}
 			return;
 		}
 
 		$new_mode = $args[0];
 		if ( ! in_array( $new_mode, array( 'integration', 'proxy' ), true ) ) {
 			WP_CLI::error( "Invalid mode: {$new_mode}. Use 'integration' or 'proxy'." );
+		}
+
+		if ( 'integration' === $new_mode ) {
+			$origin_host = isset( $assoc_args['origin-host'] ) ? sanitize_text_field( $assoc_args['origin-host'] ) : '';
+
+			if ( empty( $origin_host ) && empty( get_option( 'rebelboost_origin_host', '' ) ) ) {
+				WP_CLI::error( 'Integration mode requires --origin-host=<ip-or-hostname> so RebelBoost can reach your server after DNS is pointed to the proxy.' );
+			}
+
+			if ( ! empty( $origin_host ) ) {
+				update_option( 'rebelboost_origin_host', $origin_host );
+			}
 		}
 
 		update_option( 'rebelboost_mode', $new_mode );
